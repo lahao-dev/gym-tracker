@@ -13,8 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 // Serve file tĩnh từ thư mục frontend
-app.use(express.static(path.join(__dirname, '../frontend')));
-console.log('Frontend path:', path.join(__dirname, '../frontend'));
+const frontendPath = path.join(__dirname, '..', 'frontend');
+console.log('Frontend path:', frontendPath);
+app.use(express.static(frontendPath));
 
 // =============================================
 // ROUTES
@@ -25,7 +26,7 @@ app.use('/api/exercises', require('./routes/exercises'));
 
 // Mọi route không khớp → trả về index.html (phải đặt CUỐI CÙNG)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // =============================================
@@ -33,6 +34,6 @@ app.get('*', (req, res) => {
 // =============================================
 app.listen(PORT, () => {
   console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
-  console.log(`📁 Frontend:  http://localhost:${PORT}`);
-  console.log(`🔌 API:       http://localhost:${PORT}/api`);
+  console.log(`📁 Frontend path: ${frontendPath}`);
+  console.log(`🔌 API: http://localhost:${PORT}/api`);
 });
