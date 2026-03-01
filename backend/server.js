@@ -9,14 +9,11 @@ const PORT = process.env.PORT || 3000;
 // =============================================
 // MIDDLEWARE
 // =============================================
-app.use(cors());                        // Cho phép frontend gọi API
-app.use(express.json());                // Parse JSON từ request body
+app.use(cors());
+app.use(express.json());
 
 // Serve file tĩnh từ thư mục frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
 
 // =============================================
 // ROUTES
@@ -25,7 +22,7 @@ app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/workouts',  require('./routes/workouts'));
 app.use('/api/exercises', require('./routes/exercises'));
 
-// Mọi route không khớp → trả về index.html (Single Page App)
+// Mọi route không khớp → trả về index.html (phải đặt CUỐI CÙNG)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
