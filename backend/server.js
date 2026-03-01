@@ -14,6 +14,7 @@ app.use(express.json());
 
 // Serve file tĩnh từ thư mục frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
+console.log('Frontend path:', path.join(__dirname, '../frontend'));
 
 // =============================================
 // ROUTES
