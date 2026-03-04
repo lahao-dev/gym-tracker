@@ -1,280 +1,381 @@
-// workout.js - Quản lý buổi tập và bài tập
+// workout.js - Quản lý buổi tập (sao chép luôn hiện, tên bài tập có dropdown từ thư viện)
 
-let currentWorkout  = null; // Buổi tập đang hiển thị
-let currentRating   = 0;
-let editingExId     = null; // ID bài tập đang sửa (null = thêm mới)
+let currentWorkout   = null;
+let currentDateStr   = null;
+let copiedExercises  = null;  // Buổi tập đang được sao chép
 
 // =============================================
-// TẢI THÔNG TIN BUỔI TẬP THEO NGÀY
+// TẢI BUỔI TẬP THEO NGÀY
 // =============================================
 async function loadWorkoutForDate(dateStr) {
-  // Cập nhật tiêu đề
-  const [y, m, d] = dateStr.split('-');
-  const dateObj = new Date(y, m - 1, d);
-  const title = dateObj.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('workout-date-title').textContent = title;
+  currentDateStr = dateStr;
+  updateDateTitle(dateStr);
 
   try {
-    currentWorkout = await api.getWorkout(dateStr);
-    renderWorkout();
+    const data = await apiGetWorkoutByDate(dateStr);
+    currentWorkout = data;
+    renderWorkout(data);
   } catch (e) {
-    console.error('Lỗi tải buổi tập:', e);
-  }
-}
-
-// =============================================
-// RENDER DANH SÁCH BÀI TẬP
-// =============================================
-function renderWorkout() {
-  const content = document.getElementById('workout-content');
-  const actions = document.getElementById('workout-actions');
-  const ratingEl = document.getElementById('workout-rating');
-  const chartEl  = document.getElementById('chart-section');
-
-  if (!currentWorkout) {
-    // Chưa có buổi tập ngày này
-    content.innerHTML = `
-      <div class="empty-state">
-        <p>Ngày này chưa có buổi tập</p>
-        <br>
-        <button class="btn-add-exercise" onclick="openAddExercise()">+ Thêm bài tập đầu tiên</button>
-      </div>`;
-    actions.style.display = 'none';
-    ratingEl.classList.add('hidden');
-    chartEl.classList.add('hidden');
-    return;
-  }
-
-  actions.style.display = 'flex';
-  ratingEl.classList.remove('hidden');
-  chartEl.classList.remove('hidden');
-
-  const exercises = currentWorkout.exercises || [];
-
-  // Render danh sách bài tập
-  let listHTML = `<div class="exercise-list">`;
-  if (exercises.length === 0) {
-    listHTML += `<p style="color:var(--gray-500); text-align:center; padding:1rem">Chưa có bài tập nào</p>`;
-  } else {
-    exercises.forEach(ex => {
-      const doneClass = ex.completed ? 'done' : '';
-      const cardClass = ex.completed ? 'completed' : '';
-      listHTML += `
-        <div class="exercise-card ${cardClass}" id="ex-card-${ex.id}">
-          <div class="ex-check ${doneClass}" onclick="toggleComplete(${ex.id}, ${ex.completed})">
-            ${ex.completed ? '✓' : ''}
-          </div>
-          <div class="ex-info">
-            <div class="ex-name">${ex.name}</div>
-            <div class="ex-details">
-              ${ex.sets} set × ${ex.reps} rep · ${ex.weight_kg} kg · nghỉ ${ex.rest_seconds}s
-            </div>
-            ${ex.notes ? `<div class="ex-notes-text">📝 ${ex.notes}</div>` : ''}
-          </div>
-          <div class="ex-btns">
-            <button class="btn-icon btn-edit" onclick="openEditExercise(${ex.id})" title="Sửa">✏️</button>
-            <button class="btn-icon btn-del" onclick="deleteExercise(${ex.id})" title="Xóa">🗑️</button>
-          </div>
-        </div>`;
-    });
-  }
-  listHTML += `</div>`;
-  listHTML += `<button class="btn-add-exercise" onclick="openAddExercise()">+ Thêm bài tập</button>`;
-  content.innerHTML = listHTML;
-
-  // Đánh giá
-  currentRating = currentWorkout.rating || 0;
-  renderStars();
-  document.getElementById('workout-notes').value = currentWorkout.notes || '';
-
-  // Cập nhật select cho biểu đồ
-  const select = document.getElementById('chart-exercise-select');
-  const uniqueNames = [...new Set(exercises.map(e => e.name))];
-  const currentVal = select.value;
-  select.innerHTML = '<option value="">-- Chọn bài tập --</option>' +
-    uniqueNames.map(n => `<option value="${n}" ${n === currentVal ? 'selected' : ''}>${n}</option>`).join('');
-  if (currentVal) loadChart();
-}
-
-// =============================================
-// TICK HOÀN THÀNH BÀI TẬP
-// =============================================
-async function toggleComplete(id, currentStatus) {
-  try {
-    await api.updateExercise(id, { completed: currentStatus ? 0 : 1 });
-    await refreshCurrentWorkout();
-  } catch (e) { alert('Lỗi: ' + e.message); }
-}
-
-// =============================================
-// XÓA BUỔI TẬP
-// =============================================
-async function deleteWorkout() {
-  if (!currentWorkout) return;
-  if (!confirm('Xóa toàn bộ buổi tập ngày này?')) return;
-  try {
-    await api.deleteWorkout(currentWorkout.id);
     currentWorkout = null;
-    workoutDates.delete(selectedDate);
-    renderCalendar();
-    updateMonthStats();
-    renderWorkout();
-  } catch (e) { alert('Lỗi: ' + e.message); }
+    renderWorkout(null);
+  }
+}
+
+function updateDateTitle(dateStr) {
+  const el = document.getElementById('workout-date-title');
+  if (!el) return;
+  const d = new Date(dateStr + 'T00:00:00');
+  const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+  el.textContent = `${days[d.getDay()]}, ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+}
+
+// =============================================
+// RENDER BUỔI TẬP
+// =============================================
+function renderWorkout(workout) {
+  const container = document.getElementById('workout-container');
+  if (!container) return;
+
+  const exercises = workout?.exercises || [];
+  const hasExercises = exercises.length > 0;
+
+  container.innerHTML = `
+    <!-- Nút sao chép: LUÔN hiển thị, kể cả khi chưa có bài tập -->
+    <div class="copy-section">
+      ${copiedExercises
+        ? `<div class="copy-info">📋 Đã sao chép ${copiedExercises.length} bài — <button class="btn-paste" onclick="pasteWorkout()">Dán vào ngày này</button> <button class="btn-clear-copy" onclick="clearCopy()">✕ Bỏ</button></div>`
+        : `<button class="btn-copy-day" onclick="copyWorkout()" ${!hasExercises ? 'disabled title="Không có bài tập để sao chép"' : ''}>
+             📋 Sao chép buổi tập ngày này
+           </button>`
+      }
+    </div>
+
+    <!-- Ghi chú buổi tập -->
+    <div class="workout-note-section">
+      <textarea id="workout-note" placeholder="Ghi chú buổi tập (tùy chọn)..."
+                rows="2">${workout?.notes || ''}</textarea>
+    </div>
+
+    <!-- Danh sách bài tập -->
+    <div id="exercise-list">
+      ${hasExercises
+        ? exercises.map(ex => renderExerciseCard(ex)).join('')
+        : `<div class="no-exercise-msg">
+             <p>📭 Chưa có bài tập nào.</p>
+             <p class="hint">Bấm <strong>"+ Thêm bài tập"</strong> hoặc sao chép từ ngày khác.</p>
+           </div>`
+      }
+    </div>
+
+    <!-- Đánh giá buổi tập -->
+    ${hasExercises ? `
+    <div class="workout-rating">
+      <span>Đánh giá buổi tập:</span>
+      <div class="star-rating">
+        ${[1,2,3,4,5].map(s => `
+          <span class="star ${s <= (workout?.rating || 0) ? 'active' : ''}"
+                onclick="setRating(${s})">★</span>
+        `).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- Nút thêm bài tập -->
+    <button class="btn-add-exercise" onclick="showAddExerciseForm()">
+      + Thêm bài tập
+    </button>
+
+    <!-- Form thêm bài tập (ẩn mặc định) -->
+    <div id="add-exercise-form" class="add-exercise-form" style="display:none;">
+      ${renderAddExerciseForm()}
+    </div>
+  `;
+}
+
+// =============================================
+// CARD BÀI TẬP
+// =============================================
+function renderExerciseCard(ex) {
+  const sets = JSON.parse(ex.sets_data || '[]');
+  return `
+    <div class="exercise-card" id="ex-card-${ex.id}">
+      <div class="exercise-card-header">
+        <span class="exercise-card-name">${ex.name}</span>
+        <div class="exercise-card-actions">
+          <button class="btn-icon" onclick="editExercise(${ex.id})" title="Sửa">✏️</button>
+          <button class="btn-icon btn-danger" onclick="deleteExercise(${ex.id})" title="Xóa">🗑️</button>
+        </div>
+      </div>
+      <div class="exercise-card-meta">
+        ${ex.weight_kg ? `<span>⚖️ ${ex.weight_kg}kg</span>` : ''}
+        ${ex.rest_seconds ? `<span>⏱️ Nghỉ ${ex.rest_seconds}s</span>` : ''}
+      </div>
+      ${ex.notes ? `<div class="exercise-card-note">📝 ${ex.notes}</div>` : ''}
+
+      <!-- Sets -->
+      <div class="sets-container">
+        ${sets.map((set, i) => `
+          <div class="set-row ${set.completed ? 'completed' : ''}">
+            <span class="set-label">Set ${i+1}</span>
+            <span class="set-info">${set.reps} rep${set.weight ? ` × ${set.weight}kg` : ''}</span>
+            <button class="btn-tick ${set.completed ? 'ticked' : ''}"
+                    onclick="toggleSet(${ex.id}, ${i})">
+              ${set.completed ? '✅' : '⬜'}
+            </button>
+          </div>
+        `).join('')}
+        <button class="btn-add-set" onclick="addSet(${ex.id})">+ Thêm set</button>
+      </div>
+    </div>
+  `;
+}
+
+// =============================================
+// FORM THÊM BÀI TẬP (tên bài có dropdown từ thư viện)
+// =============================================
+function renderAddExerciseForm(existing = null) {
+  const uid = Date.now();
+  const dropdownId = `ex-dropdown-${uid}`;
+  return `
+    <div class="add-form-inner">
+      <h4>${existing ? '✏️ Sửa bài tập' : '+ Thêm bài tập mới'}</h4>
+
+      <!-- Ô tìm kiếm tên bài tập -->
+      <div class="form-group exercise-name-wrapper">
+        <label>Tên bài tập *</label>
+        <input type="text" id="ex-name" placeholder="Tìm bài tập từ thư viện..."
+               value="${existing?.name || ''}"
+               oninput="searchExercisesForForm(this.value, '${dropdownId}')"
+               autocomplete="off">
+        <div class="exercise-dropdown" id="${dropdownId}"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Số set</label>
+          <input type="number" id="ex-sets" min="1" max="20" value="${existing?.num_sets || 3}">
+        </div>
+        <div class="form-group">
+          <label>Số rep / set</label>
+          <input type="number" id="ex-reps" min="1" max="100" value="${existing?.num_reps || 10}">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mức tạ (kg)</label>
+          <input type="number" id="ex-weight" min="0" step="0.5" value="${existing?.weight_kg || ''}">
+        </div>
+        <div class="form-group">
+          <label>Nghỉ (giây)</label>
+          <input type="number" id="ex-rest" min="0" value="${existing?.rest_seconds || 60}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Ghi chú</label>
+        <input type="text" id="ex-note" placeholder="Ví dụ: Tăng 5kg so với tuần trước"
+               value="${existing?.notes || ''}">
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-save-exercise" onclick="${existing ? `saveEditExercise(${existing.id})` : 'saveNewExercise()'}">
+          💾 Lưu
+        </button>
+        <button class="btn-cancel-exercise" onclick="hideAddExerciseForm()">Hủy</button>
+      </div>
+    </div>
+  `;
+}
+
+// =============================================
+// HIỆN / ẨN FORM
+// =============================================
+function showAddExerciseForm() {
+  const form = document.getElementById('add-exercise-form');
+  if (form) {
+    form.innerHTML = renderAddExerciseForm();
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function hideAddExerciseForm() {
+  const form = document.getElementById('add-exercise-form');
+  if (form) form.style.display = 'none';
+}
+
+// =============================================
+// LƯU BÀI TẬP MỚI
+// =============================================
+async function saveNewExercise() {
+  const name    = document.getElementById('ex-name')?.value?.trim();
+  const numSets = parseInt(document.getElementById('ex-sets')?.value) || 3;
+  const numReps = parseInt(document.getElementById('ex-reps')?.value) || 10;
+  const weight  = parseFloat(document.getElementById('ex-weight')?.value) || 0;
+  const rest    = parseInt(document.getElementById('ex-rest')?.value) || 60;
+  const note    = document.getElementById('ex-note')?.value?.trim() || '';
+
+  if (!name) { alert('Vui lòng nhập tên bài tập!'); return; }
+
+  // Tạo buổi tập nếu chưa có
+  if (!currentWorkout) {
+    try {
+      currentWorkout = await apiCreateWorkout({ date: currentDateStr, notes: '', rating: 0 });
+      workoutDates[currentDateStr] = true;
+    } catch (e) { alert('Lỗi tạo buổi tập!'); return; }
+  }
+
+  // Tạo sets data
+  const setsData = Array.from({ length: numSets }, () => ({
+    reps: numReps, weight: weight, completed: false
+  }));
+
+  try {
+    await apiCreateExercise({
+      workout_id: currentWorkout.id,
+      name, num_sets: numSets, num_reps: numReps,
+      weight_kg: weight, rest_seconds: rest,
+      notes: note, sets_data: JSON.stringify(setsData)
+    });
+    await loadWorkoutForDate(currentDateStr);
+    await refreshCalendarAfterSave(currentDateStr);
+  } catch (e) { alert('Lỗi lưu bài tập!'); }
+}
+
+// =============================================
+// SỬA BÀI TẬP
+// =============================================
+function editExercise(exerciseId) {
+  const ex = currentWorkout?.exercises?.find(e => e.id === exerciseId);
+  if (!ex) return;
+  const form = document.getElementById('add-exercise-form');
+  if (form) {
+    form.innerHTML = renderAddExerciseForm(ex);
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+async function saveEditExercise(exerciseId) {
+  const name   = document.getElementById('ex-name')?.value?.trim();
+  const weight = parseFloat(document.getElementById('ex-weight')?.value) || 0;
+  const rest   = parseInt(document.getElementById('ex-rest')?.value) || 60;
+  const note   = document.getElementById('ex-note')?.value?.trim() || '';
+
+  if (!name) { alert('Vui lòng nhập tên bài tập!'); return; }
+
+  try {
+    await apiUpdateExercise(exerciseId, { name, weight_kg: weight, rest_seconds: rest, notes: note });
+    await loadWorkoutForDate(currentDateStr);
+  } catch (e) { alert('Lỗi sửa bài tập!'); }
 }
 
 // =============================================
 // XÓA BÀI TẬP
 // =============================================
-async function deleteExercise(id) {
+async function deleteExercise(exerciseId) {
   if (!confirm('Xóa bài tập này?')) return;
   try {
-    await api.deleteExercise(id);
-    await refreshCurrentWorkout();
-  } catch (e) { alert('Lỗi: ' + e.message); }
+    await apiDeleteExercise(exerciseId);
+    await loadWorkoutForDate(currentDateStr);
+    await refreshCalendarAfterSave(currentDateStr);
+  } catch (e) { alert('Lỗi xóa bài tập!'); }
 }
 
 // =============================================
-// LƯU GHI CHÚ VÀ ĐÁNH GIÁ BUỔI TẬP
+// TICK / UNTICK SET
 // =============================================
-async function saveWorkoutInfo() {
-  const notes = document.getElementById('workout-notes').value;
-  try {
-    await api.saveWorkout({ date: selectedDate, notes, rating: currentRating });
-    await refreshCurrentWorkout();
-    // Thông báo nhỏ
-    const btn = document.querySelector('.btn-save');
-    btn.textContent = '✅ Đã lưu!';
-    setTimeout(() => btn.textContent = '💾 Lưu ghi chú', 1500);
-  } catch (e) { alert('Lỗi: ' + e.message); }
-}
-
-// =============================================
-// MODAL THÊM / SỬA BÀI TẬP
-// =============================================
-function openAddExercise() {
-  editingExId = null;
-  document.getElementById('modal-title').textContent = 'Thêm bài tập';
-  document.getElementById('ex-name').value   = '';
-  document.getElementById('ex-sets').value   = '3';
-  document.getElementById('ex-reps').value   = '10';
-  document.getElementById('ex-weight').value = '0';
-  document.getElementById('ex-rest').value   = '60';
-  document.getElementById('ex-notes').value  = '';
-  document.getElementById('modal-error').textContent = '';
-  openModal('exercise-modal');
-}
-
-function openEditExercise(id) {
-  const ex = currentWorkout.exercises.find(e => e.id === id);
+async function toggleSet(exerciseId, setIndex) {
+  const ex = currentWorkout?.exercises?.find(e => e.id === exerciseId);
   if (!ex) return;
-  editingExId = id;
-  document.getElementById('modal-title').textContent = 'Sửa bài tập';
-  document.getElementById('ex-name').value   = ex.name;
-  document.getElementById('ex-sets').value   = ex.sets;
-  document.getElementById('ex-reps').value   = ex.reps;
-  document.getElementById('ex-weight').value = ex.weight_kg;
-  document.getElementById('ex-rest').value   = ex.rest_seconds;
-  document.getElementById('ex-notes').value  = ex.notes || '';
-  document.getElementById('modal-error').textContent = '';
-  openModal('exercise-modal');
-}
-
-async function saveExercise() {
-  const name   = document.getElementById('ex-name').value.trim();
-  const sets   = parseInt(document.getElementById('ex-sets').value);
-  const reps   = parseInt(document.getElementById('ex-reps').value);
-  const weight = parseFloat(document.getElementById('ex-weight').value);
-  const rest   = parseInt(document.getElementById('ex-rest').value);
-  const notes  = document.getElementById('ex-notes').value.trim();
-  const errEl  = document.getElementById('modal-error');
-
-  if (!name) { errEl.textContent = 'Vui lòng nhập tên bài tập!'; return; }
-
+  const sets = JSON.parse(ex.sets_data || '[]');
+  if (!sets[setIndex]) return;
+  sets[setIndex].completed = !sets[setIndex].completed;
   try {
-    if (editingExId) {
-      // Sửa bài tập
-      await api.updateExercise(editingExId, { name, sets, reps, weight_kg: weight, rest_seconds: rest, notes });
-    } else {
-      // Thêm mới — đảm bảo có buổi tập
-      let workout = currentWorkout;
-      if (!workout) {
-        workout = await api.saveWorkout({ date: selectedDate, notes: '', rating: 0 });
-        workoutDates.add(selectedDate);
-        renderCalendar();
-        updateMonthStats();
-      }
-      await api.addExercise({ workout_id: workout.id, name, sets, reps, weight_kg: weight, rest_seconds: rest, notes });
-    }
-    closeModal('exercise-modal');
-    await refreshCurrentWorkout();
-  } catch (e) {
-    errEl.textContent = 'Lỗi: ' + e.message;
-  }
+    await apiUpdateExercise(exerciseId, { sets_data: JSON.stringify(sets) });
+    ex.sets_data = JSON.stringify(sets);
+    // Cập nhật card mà không reload toàn bộ
+    const card = document.getElementById(`ex-card-${exerciseId}`);
+    if (card) card.outerHTML = renderExerciseCard(ex);
+  } catch (e) { console.error(e); }
 }
 
 // =============================================
-// SAO CHÉP LỊCH TẬP
+// THÊM SET
 // =============================================
-function openCopyModal() {
-  document.getElementById('copy-to-date').textContent = selectedDate;
-  document.getElementById('copy-from-date').value = '';
-  document.getElementById('copy-error').textContent = '';
-  openModal('copy-modal');
-}
-
-async function copyWorkout() {
-  const fromDate = document.getElementById('copy-from-date').value;
-  const errEl = document.getElementById('copy-error');
-  if (!fromDate) { errEl.textContent = 'Vui lòng chọn ngày nguồn!'; return; }
-  if (fromDate === selectedDate) { errEl.textContent = 'Ngày nguồn và đích không được trùng!'; return; }
-
+async function addSet(exerciseId) {
+  const ex = currentWorkout?.exercises?.find(e => e.id === exerciseId);
+  if (!ex) return;
+  const sets = JSON.parse(ex.sets_data || '[]');
+  const lastSet = sets[sets.length - 1] || { reps: 10, weight: 0 };
+  sets.push({ reps: lastSet.reps, weight: lastSet.weight, completed: false });
   try {
-    const result = await api.copyWorkout({ from_date: fromDate, to_date: selectedDate });
-    currentWorkout = result;
-    workoutDates.add(selectedDate);
-    renderCalendar();
-    updateMonthStats();
-    renderWorkout();
-    closeModal('copy-modal');
-  } catch (e) {
-    errEl.textContent = 'Lỗi: ' + e.message;
-  }
+    await apiUpdateExercise(exerciseId, { sets_data: JSON.stringify(sets) });
+    ex.sets_data = JSON.stringify(sets);
+    const card = document.getElementById(`ex-card-${exerciseId}`);
+    if (card) card.outerHTML = renderExerciseCard(ex);
+  } catch (e) { console.error(e); }
 }
 
 // =============================================
 // ĐÁNH GIÁ SAO
 // =============================================
-function renderStars() {
-  const container = document.getElementById('stars-container');
-  container.innerHTML = '';
-  for (let i = 1; i <= 5; i++) {
-    const star = document.createElement('span');
-    star.className = 'star' + (i <= currentRating ? ' active' : '');
-    star.textContent = '⭐';
-    star.onclick = () => { currentRating = i; renderStars(); };
-    container.appendChild(star);
+async function setRating(rating) {
+  if (!currentWorkout) return;
+  try {
+    await apiUpdateWorkout(currentWorkout.id, { rating });
+    currentWorkout.rating = rating;
+    // Cập nhật sao hiển thị
+    document.querySelectorAll('.star').forEach((el, i) => {
+      el.classList.toggle('active', i < rating);
+    });
+  } catch (e) { console.error(e); }
+}
+
+// =============================================
+// SAO CHÉP / DÁN BUỔI TẬP
+// =============================================
+function copyWorkout() {
+  if (!currentWorkout?.exercises?.length) {
+    alert('Không có bài tập nào để sao chép!');
+    return;
   }
+  copiedExercises = currentWorkout.exercises.map(ex => ({ ...ex }));
+  alert(`✅ Đã sao chép ${copiedExercises.length} bài tập! Chọn ngày khác rồi bấm "Dán vào ngày này".`);
+  renderWorkout(currentWorkout); // cập nhật UI nút
 }
 
-// =============================================
-// HELPERS
-// =============================================
-async function refreshCurrentWorkout() {
-  currentWorkout = await api.getWorkout(selectedDate);
-  renderWorkout();
+async function pasteWorkout() {
+  if (!copiedExercises?.length) return;
+  if (!confirm(`Dán ${copiedExercises.length} bài tập vào ngày ${currentDateStr}?`)) return;
+
+  // Tạo buổi tập nếu chưa có
+  if (!currentWorkout) {
+    try {
+      currentWorkout = await apiCreateWorkout({ date: currentDateStr, notes: '', rating: 0 });
+      workoutDates[currentDateStr] = true;
+    } catch (e) { alert('Lỗi tạo buổi tập!'); return; }
+  }
+
+  try {
+    for (const ex of copiedExercises) {
+      const setsData = Array.from({ length: ex.num_sets || 3 }, () => ({
+        reps: ex.num_reps || 10, weight: ex.weight_kg || 0, completed: false
+      }));
+      await apiCreateExercise({
+        workout_id: currentWorkout.id,
+        name: ex.name, num_sets: ex.num_sets, num_reps: ex.num_reps,
+        weight_kg: ex.weight_kg, rest_seconds: ex.rest_seconds,
+        notes: ex.notes, sets_data: JSON.stringify(setsData)
+      });
+    }
+    copiedExercises = null;
+    await loadWorkoutForDate(currentDateStr);
+    await refreshCalendarAfterSave(currentDateStr);
+  } catch (e) { alert('Lỗi dán buổi tập!'); }
 }
 
-function openModal(id) {
-  document.getElementById(id).classList.remove('hidden');
-  document.getElementById('overlay').classList.remove('hidden');
-}
-
-function closeModal(id) {
-  document.getElementById(id).classList.add('hidden');
-  document.getElementById('overlay').classList.add('hidden');
-}
-
-function closeAllModals() {
-  document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
-  document.getElementById('overlay').classList.add('hidden');
+function clearCopy() {
+  copiedExercises = null;
+  renderWorkout(currentWorkout);
 }

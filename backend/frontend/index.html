@@ -1,245 +1,226 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>💪 Gym Tracker</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <!-- Chart.js để vẽ biểu đồ -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- ==================== TRANG AUTH (Đăng nhập / Đăng ký) ==================== -->
-  <div id="auth-page" class="auth-page">
-    <div class="auth-box">
-      <h1>💪 Gym Tracker</h1>
-      <p class="auth-subtitle">Theo dõi hành trình tập luyện của bạn</p>
+<!-- =============================================
+     AUTH SECTION
+============================================= -->
+<div id="auth-section" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">💪 Gym Tracker</div>
 
-      <!-- Tab chuyển đổi -->
-      <div class="auth-tabs">
-        <button class="tab-btn active" onclick="switchTab('login')">Đăng nhập</button>
-        <button class="tab-btn" onclick="switchTab('register')">Đăng ký</button>
-      </div>
-
-      <!-- Form đăng nhập -->
-      <form id="login-form" class="auth-form">
-        <div class="form-group">
-          <label>Tên đăng nhập</label>
-          <input type="text" id="login-username" placeholder="Nhập tên đăng nhập" required />
-        </div>
-        <div class="form-group">
-          <label>Mật khẩu</label>
-          <input type="password" id="login-password" placeholder="Nhập mật khẩu" required />
-        </div>
-        <div id="login-error" class="auth-error"></div>
-        <button type="submit" class="btn-primary">Đăng nhập</button>
-      </form>
-
-      <!-- Form đăng ký -->
-      <form id="register-form" class="auth-form hidden">
-        <div class="form-group">
-          <label>Họ và tên</label>
-          <input type="text" id="reg-fullname" placeholder="Nhập họ và tên" required />
-        </div>
-        <div class="form-group">
-          <label>Tên đăng nhập</label>
-          <input type="text" id="reg-username" placeholder="Tối thiểu 3 ký tự" required />
-        </div>
-        <div class="form-group">
-          <label>Mật khẩu</label>
-          <input type="password" id="reg-password" placeholder="Tối thiểu 6 ký tự" required />
-        </div>
-        <div class="form-group">
-          <label>Nhập lại mật khẩu</label>
-          <input type="password" id="reg-confirm" placeholder="Nhập lại mật khẩu" required />
-        </div>
-        <div id="register-error" class="auth-error"></div>
-        <button type="submit" class="btn-primary">Tạo tài khoản</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- ==================== TRANG CHÍNH (sau khi đăng nhập) ==================== -->
-  <div id="main-page" class="main-page hidden">
-
-    <!-- Header -->
-    <header class="header">
-      <div class="header-left">
-        <span class="logo">💪 Gym Tracker</span>
-      </div>
-      <div class="header-right">
-        <span id="user-greeting" class="user-greeting"></span>
-        <button class="btn-logout" onclick="logout()">Đăng xuất</button>
-      </div>
-    </header>
-
-    <!-- Layout chính 3 cột (PC) / 1 cột (Mobile) -->
-    <div class="layout">
-
-      <!-- CỘT TRÁI: Lịch tháng -->
-      <aside class="panel panel-calendar">
-        <div class="calendar-header">
-          <button onclick="changeMonth(-1)">&#8592;</button>
-          <span id="calendar-title"></span>
-          <button onclick="changeMonth(1)">&#8594;</button>
-        </div>
-        <div class="calendar-weekdays">
-          <span>CN</span><span>T2</span><span>T3</span>
-          <span>T4</span><span>T5</span><span>T6</span><span>T7</span>
-        </div>
-        <div id="calendar-grid" class="calendar-grid"></div>
-
-        <!-- Thống kê tháng -->
-        <div class="month-stats">
-          <div class="stat-item">
-            <span class="stat-num" id="stat-sessions">0</span>
-            <span class="stat-label">Buổi tập</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-num" id="stat-streak">0</span>
-            <span class="stat-label">🔥 Chuỗi hiện tại</span>
-          </div>
-        </div>
-      </aside>
-
-      <!-- CỘT GIỮA: Thông tin buổi tập -->
-      <main class="panel panel-workout">
-        <div class="workout-header">
-          <h2 id="workout-date-title">Chọn một ngày để bắt đầu</h2>
-          <div class="workout-actions" id="workout-actions" style="display:none">
-            <button class="btn-copy" onclick="openCopyModal()">📋 Sao chép lịch tập</button>
-            <button class="btn-delete-workout" onclick="deleteWorkout()">🗑️ Xóa buổi tập</button>
-          </div>
-        </div>
-
-        <!-- Khu vực bài tập -->
-        <div id="workout-content">
-          <div class="empty-state">
-            <p>👈 Chọn một ngày trên lịch</p>
-          </div>
-        </div>
-
-        <!-- Đánh giá buổi tập -->
-        <div id="workout-rating" class="workout-rating hidden">
-          <span>Đánh giá buổi tập:</span>
-          <div class="stars" id="stars-container"></div>
-          <textarea id="workout-notes" placeholder="Ghi chú buổi tập..." rows="2"></textarea>
-          <button class="btn-save" onclick="saveWorkoutInfo()">💾 Lưu ghi chú</button>
-        </div>
-
-        <!-- Biểu đồ tiến trình -->
-        <div id="chart-section" class="chart-section hidden">
-          <h3>📊 Biểu đồ tiến trình tạ</h3>
-          <select id="chart-exercise-select" onchange="loadChart()">
-            <option value="">-- Chọn bài tập --</option>
-          </select>
-          <canvas id="progress-chart"></canvas>
-        </div>
-      </main>
-
-      <!-- CỘT PHẢI: Đồng hồ đếm ngược -->
-      <aside class="panel panel-timer">
-        <h3>⏱️ Đồng hồ nghỉ</h3>
-
-        <!-- Các preset thời gian -->
-        <div class="timer-presets">
-          <button class="preset-btn active" onclick="setTimer(30)">30s</button>
-          <button class="preset-btn" onclick="setTimer(45)">45s</button>
-          <button class="preset-btn" onclick="setTimer(60)">60s</button>
-          <button class="preset-btn" onclick="setTimer(90)">90s</button>
-          <button class="preset-btn" onclick="setTimer(300)">5 phút</button>
-          <button class="preset-btn" onclick="setTimer(600)">10 phút</button>
-        </div>
-
-        <!-- Hiển thị đồng hồ -->
-        <div class="timer-display" id="timer-display">00:30</div>
-
-        <!-- Thanh tiến trình -->
-        <div class="timer-progress-bar">
-          <div class="timer-progress-fill" id="timer-progress-fill"></div>
-        </div>
-
-        <!-- Nút điều khiển -->
-        <div class="timer-controls">
-          <button class="btn-timer start" id="timer-start-btn" onclick="toggleTimer()">▶ Bắt đầu</button>
-          <button class="btn-timer reset" onclick="resetTimer()">↺ Reset</button>
-        </div>
-
-        <p class="timer-hint">⬆️ Chọn thời gian nghỉ phù hợp</p>
-      </aside>
-    </div>
-  </div>
-
-  <!-- ==================== MODAL: Thêm / Sửa bài tập ==================== -->
-  <div id="exercise-modal" class="modal hidden">
-    <div class="modal-box">
-      <h3 id="modal-title">Thêm bài tập</h3>
-      <input type="hidden" id="edit-exercise-id" />
-
+    <!-- ĐĂNG NHẬP -->
+    <div id="login-form">
+      <h2>Đăng nhập</h2>
       <div class="form-group">
-        <label>Tên bài tập *</label>
-        <input type="text" id="ex-name" placeholder="VD: Bench Press, Squat..." />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Số set</label>
-          <input type="number" id="ex-sets" value="3" min="1" />
-        </div>
-        <div class="form-group">
-          <label>Số rep</label>
-          <input type="number" id="ex-reps" value="10" min="1" />
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Mức tạ (kg)</label>
-          <input type="number" id="ex-weight" value="0" min="0" step="0.5" />
-        </div>
-        <div class="form-group">
-          <label>Nghỉ (giây)</label>
-          <input type="number" id="ex-rest" value="60" min="0" />
-        </div>
+        <label>Tên đăng nhập</label>
+        <input type="text" id="login-username" placeholder="Nhập tên đăng nhập">
       </div>
       <div class="form-group">
-        <label>Ghi chú</label>
-        <input type="text" id="ex-notes" placeholder="VD: Tăng 5kg tuần sau" />
+        <label>Mật khẩu</label>
+        <input type="password" id="login-password" placeholder="Nhập mật khẩu">
       </div>
-
-      <div id="modal-error" class="auth-error"></div>
-      <div class="modal-actions">
-        <button class="btn-primary" onclick="saveExercise()">💾 Lưu</button>
-        <button class="btn-secondary" onclick="closeModal('exercise-modal')">Hủy</button>
-      </div>
+      <p id="login-error" class="error-msg"></p>
+      <button class="btn-primary full-width" onclick="login()">Đăng nhập</button>
+      <p class="auth-switch">Chưa có tài khoản?
+        <a href="#" onclick="showRegisterForm()">Đăng ký ngay</a>
+      </p>
     </div>
-  </div>
 
-  <!-- ==================== MODAL: Sao chép lịch tập ==================== -->
-  <div id="copy-modal" class="modal hidden">
-    <div class="modal-box">
-      <h3>📋 Sao chép lịch tập</h3>
-      <p>Chép lịch tập từ ngày nào vào <strong id="copy-to-date"></strong>?</p>
+    <!-- ĐĂNG KÝ -->
+    <div id="register-form" style="display:none;">
+      <h2>Tạo tài khoản</h2>
       <div class="form-group">
-        <label>Ngày nguồn</label>
-        <input type="date" id="copy-from-date" />
+        <label>Họ và tên</label>
+        <input type="text" id="reg-fullname" placeholder="Nguyễn Văn A">
       </div>
-      <div id="copy-error" class="auth-error"></div>
-      <div class="modal-actions">
-        <button class="btn-primary" onclick="copyWorkout()">📋 Sao chép</button>
-        <button class="btn-secondary" onclick="closeModal('copy-modal')">Hủy</button>
+      <div class="form-group">
+        <label>Tên đăng nhập</label>
+        <input type="text" id="reg-username" placeholder="Chỉ dùng chữ, số, dấu _">
       </div>
+      <div class="form-group">
+        <label>Mật khẩu</label>
+        <input type="password" id="reg-password" placeholder="Tối thiểu 6 ký tự">
+      </div>
+      <div class="form-group">
+        <label>Nhập lại mật khẩu</label>
+        <input type="password" id="reg-password2" placeholder="Nhập lại mật khẩu">
+      </div>
+      <p id="reg-error" class="error-msg"></p>
+      <button class="btn-primary full-width" onclick="register()">Tạo tài khoản</button>
+      <p class="auth-switch">Đã có tài khoản?
+        <a href="#" onclick="showLoginForm()">Đăng nhập</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     APP SECTION
+============================================= -->
+<div id="app-section" style="display:none;">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-logo">💪 Gym Tracker</div>
+    <nav class="header-nav">
+      <button class="nav-tab active" data-tab="workout" onclick="switchTab('workout')">
+        📅 Lịch Tập
+      </button>
+      <button class="nav-tab" data-tab="library" onclick="switchTab('library')">
+        📚 Thư Viện
+      </button>
+    </nav>
+    <div class="header-user">
+      <span>Xin chào, <strong id="user-name"></strong></span>
+      <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <!-- ===== TAB LỊCH TẬP ===== -->
+  <div id="workout-tab" class="tab-content">
+    <div class="workout-layout">
+
+      <!-- CỘT TRÁI: LỊCH THÁNG -->
+      <div class="col-calendar">
+        <div class="calendar-card">
+          <div class="calendar-nav">
+            <button onclick="prevMonth()">‹</button>
+            <span id="calendar-month-title">Tháng 1 / 2026</span>
+            <button onclick="nextMonth()">›</button>
+          </div>
+          <div id="calendar-day-headers" class="calendar-day-headers"></div>
+          <div id="calendar-grid" class="calendar-grid"></div>
+          <div id="month-workout-count" class="month-stats">0 buổi tập trong tháng</div>
+        </div>
+      </div>
+
+      <!-- CỘT GIỮA: BUỔI TẬP -->
+      <div class="col-workout">
+        <div class="workout-card">
+          <h2 id="workout-date-title" class="workout-date-title">Chọn ngày để xem</h2>
+          <div id="workout-container">
+            <p class="hint-text">← Chọn một ngày trên lịch để bắt đầu</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CỘT PHẢI: TIMER -->
+      <div class="col-timer">
+        <div class="timer-card">
+          <h3>⏱️ Đồng hồ nghỉ</h3>
+          <div id="timer-display" class="timer-display">00:00</div>
+          <div class="timer-presets">
+            <button onclick="setTimer(30)">30s</button>
+            <button onclick="setTimer(45)">45s</button>
+            <button onclick="setTimer(60)" class="active">60s</button>
+            <button onclick="setTimer(90)">90s</button>
+            <button onclick="setTimer(300)">5p</button>
+            <button onclick="setTimer(600)">10p</button>
+          </div>
+          <div class="timer-controls">
+            <button id="timer-start-btn" class="btn-timer-start" onclick="toggleTimer()">▶ Bắt đầu</button>
+            <button class="btn-timer-reset" onclick="resetTimer()">↺ Reset</button>
+          </div>
+          <div id="timer-status" class="timer-status"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <!-- Overlay mờ phía sau modal -->
-  <div id="overlay" class="overlay hidden" onclick="closeAllModals()"></div>
+  <!-- ===== TAB THƯ VIỆN ===== -->
+  <div id="library-tab" class="tab-content" style="display:none;">
+    <div class="library-layout">
 
-  <!-- ==================== JAVASCRIPT ==================== -->
-  <script src="js/api.js"></script>
-  <script src="js/timer.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/workout.js"></script>
-  <script src="js/chart.js"></script>
-  <script src="js/app.js"></script>
+      <div class="library-header">
+        <h2>📚 Thư Viện Bài Tập</h2>
+        <div class="lib-search-wrapper">
+          <input type="text" id="lib-search-input"
+                 placeholder="🔍 Tìm kiếm bài tập..."
+                 oninput="onLibSearchInput(event)">
+        </div>
+      </div>
+
+      <div id="lib-category-tabs" class="lib-category-tabs"></div>
+      <div id="lib-exercise-list" class="lib-exercise-list"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- =============================================
+     MODAL CHI TIẾT BÀI TẬP
+============================================= -->
+<div id="exercise-detail-modal" class="modal-overlay">
+  <div class="modal-content exercise-detail-modal">
+    <button class="modal-close" onclick="closeExerciseDetail()">✕</button>
+
+    <div id="detail-thumbnail" class="detail-thumbnail"></div>
+
+    <div class="detail-body">
+      <h2 id="detail-title" class="detail-title"></h2>
+      <div class="detail-badges">
+        <span id="detail-difficulty" class="detail-badge"></span>
+        <span class="detail-badge muscle-badge">🎯 <span id="detail-muscle"></span></span>
+        <span class="detail-badge equip-badge">🏋️ <span id="detail-equipment"></span></span>
+      </div>
+
+      <div class="detail-section">
+        <h3>📋 Các bước thực hiện</h3>
+        <ol id="detail-steps" class="detail-steps"></ol>
+      </div>
+
+      <div class="detail-section">
+        <h3>⚠️ Lưu ý & Sai lầm thường gặp</h3>
+        <ul id="detail-tips" class="detail-tips"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     CHATBOX AI
+============================================= -->
+<div id="chat-widget" class="chat-widget">
+  <div id="chat-box" class="chat-box" style="display:none;">
+    <div class="chat-header">
+      <span>🤖 AI Gym Coach</span>
+      <button onclick="closeChat()">✕</button>
+    </div>
+    <div id="chat-messages" class="chat-messages">
+      <div class="chat-msg chat-msg-ai">
+        <div class="chat-bubble">
+          Xin chào! Tôi là AI Gym Coach 💪<br>
+          Hỏi tôi về bài tập, kỹ thuật, lịch tập hay dinh dưỡng nhé!
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Hỏi về bài tập...">
+      <button onclick="sendChat()">➤</button>
+    </div>
+  </div>
+  <button id="chat-toggle-btn" class="chat-toggle-btn" onclick="toggleChat()">💬</button>
+</div>
+
+<!-- =============================================
+     SCRIPTS
+============================================= -->
+<script src="js/exercises-data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/timer.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/workout.js"></script>
+<script src="js/library.js"></script>
+<script src="js/app.js"></script>
+
 </body>
 </html>

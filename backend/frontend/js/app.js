@@ -1,79 +1,107 @@
-// app.js - File khởi động chính, quản lý auth và điều phối
+// app.js - File khởi động chính, quản lý auth, tabs và chatbox AI
 
 // =============================================
 // KIỂM TRA ĐĂNG NHẬP KHI TẢI TRANG
 // =============================================
 window.addEventListener('DOMContentLoaded', () => {
   const token = localStorage.getItem('gym_token');
-  const user  = JSON.parse(localStorage.getItem('gym_user') || 'null');
-
-  if (token && user) {
-    showMainPage(user);
+  if (token) {
+    showApp();
   } else {
-    showAuthPage();
+    showAuth();
   }
 });
 
 // =============================================
-// AUTH: ĐĂNG NHẬP
+// HIỂN THỊ AUTH / APP
 // =============================================
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
+function showAuth() {
+  document.getElementById('auth-section').style.display  = 'flex';
+  document.getElementById('app-section').style.display   = 'none';
+}
 
-  try {
-    const res = await api.login({ username, password });
-    localStorage.setItem('gym_token', res.token);
-    localStorage.setItem('gym_user', JSON.stringify(res.user));
-    showMainPage(res.user);
-  } catch (e) {
-    errEl.textContent = e.message;
-  }
-});
+function showApp() {
+  document.getElementById('auth-section').style.display  = 'none';
+  document.getElementById('app-section').style.display   = 'block';
 
-// =============================================
-// AUTH: ĐĂNG KÝ
-// =============================================
-document.getElementById('register-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const full_name        = document.getElementById('reg-fullname').value.trim();
-  const username         = document.getElementById('reg-username').value.trim();
-  const password         = document.getElementById('reg-password').value;
-  const confirm_password = document.getElementById('reg-confirm').value;
-  const errEl = document.getElementById('register-error');
-  errEl.textContent = '';
+  const user = JSON.parse(localStorage.getItem('gym_user') || '{}');
+  const nameEl = document.getElementById('user-name');
+  if (nameEl) nameEl.textContent = user.full_name || user.username || 'Bạn';
 
-  try {
-    const res = await api.register({ full_name, username, password, confirm_password });
-    localStorage.setItem('gym_token', res.token);
-    localStorage.setItem('gym_user', JSON.stringify(res.user));
-    showMainPage(res.user);
-  } catch (e) {
-    errEl.textContent = e.message;
-  }
-});
+  // Mặc định mở tab lịch tập
+  switchTab('workout');
+}
 
 // =============================================
-// CHUYỂN TAB ĐĂNG NHẬP / ĐĂNG KÝ
+// CHUYỂN TAB
 // =============================================
 function switchTab(tab) {
-  const loginForm = document.getElementById('login-form');
-  const regForm   = document.getElementById('register-form');
-  const tabs      = document.querySelectorAll('.tab-btn');
+  // Ẩn tất cả tabs
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
 
-  if (tab === 'login') {
-    loginForm.classList.remove('hidden');
-    regForm.classList.add('hidden');
-    tabs[0].classList.add('active');
-    tabs[1].classList.remove('active');
-  } else {
-    loginForm.classList.add('hidden');
-    regForm.classList.remove('hidden');
-    tabs[0].classList.remove('active');
-    tabs[1].classList.add('active');
+  if (tab === 'workout') {
+    document.getElementById('workout-tab').style.display = 'block';
+    document.querySelector('[data-tab="workout"]')?.classList.add('active');
+    initCalendar();
+  } else if (tab === 'library') {
+    document.getElementById('library-tab').style.display = 'block';
+    document.querySelector('[data-tab="library"]')?.classList.add('active');
+    initLibrary();
+  }
+}
+
+// =============================================
+// ĐĂNG KÝ
+// =============================================
+async function register() {
+  const fullName  = document.getElementById('reg-fullname')?.value?.trim();
+  const username  = document.getElementById('reg-username')?.value?.trim();
+  const password  = document.getElementById('reg-password')?.value;
+  const password2 = document.getElementById('reg-password2')?.value;
+  const errEl     = document.getElementById('reg-error');
+
+  if (!fullName || !username || !password) {
+    errEl.textContent = 'Vui lòng điền đầy đủ thông tin!'; return;
+  }
+  if (password !== password2) {
+    errEl.textContent = 'Mật khẩu nhập lại không khớp!'; return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = 'Mật khẩu phải có ít nhất 6 ký tự!'; return;
+  }
+
+  try {
+    const data = await apiRegister({ full_name: fullName, username, password });
+    localStorage.setItem('gym_token', data.token);
+    localStorage.setItem('gym_user', JSON.stringify(data.user));
+    errEl.textContent = '';
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Đăng ký thất bại!';
+  }
+}
+
+// =============================================
+// ĐĂNG NHẬP
+// =============================================
+async function login() {
+  const username = document.getElementById('login-username')?.value?.trim();
+  const password = document.getElementById('login-password')?.value;
+  const errEl    = document.getElementById('login-error');
+
+  if (!username || !password) {
+    errEl.textContent = 'Vui lòng điền đầy đủ thông tin!'; return;
+  }
+
+  try {
+    const data = await apiLogin({ username, password });
+    localStorage.setItem('gym_token', data.token);
+    localStorage.setItem('gym_user', JSON.stringify(data.user));
+    errEl.textContent = '';
+    showApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Đăng nhập thất bại!';
   }
 }
 
@@ -81,226 +109,187 @@ function switchTab(tab) {
 // ĐĂNG XUẤT
 // =============================================
 function logout() {
+  if (!confirm('Bạn có chắc muốn đăng xuất?')) return;
   localStorage.removeItem('gym_token');
   localStorage.removeItem('gym_user');
-  showAuthPage();
+  showAuth();
 }
 
 // =============================================
-// HIỂN THỊ TRANG
+// CHUYỂN GIỮA LOGIN / REGISTER
 // =============================================
-function showAuthPage() {
-  document.getElementById('auth-page').classList.remove('hidden');
-  document.getElementById('main-page').classList.add('hidden');
+function showRegisterForm() {
+  document.getElementById('login-form').style.display    = 'none';
+  document.getElementById('register-form').style.display = 'block';
 }
 
-function showMainPage(user) {
-  document.getElementById('auth-page').classList.add('hidden');
-  document.getElementById('main-page').classList.remove('hidden');
-  document.getElementById('user-greeting').textContent = `Xin chào, ${user.full_name} 👋`;
-
-  renderCalendar();
-  loadWorkoutDates();
-  loadWorkoutForDate(selectedDate);
+function showLoginForm() {
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('login-form').style.display    = 'block';
 }
+
+// =============================================
+// ENTER KEY SUBMIT
+// =============================================
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const loginForm = document.getElementById('login-form');
+    const regForm   = document.getElementById('register-form');
+    if (loginForm?.style.display !== 'none') login();
+    else if (regForm?.style.display !== 'none') register();
+  }
+});
 
 // =============================================
 // CHATBOX AI
 // =============================================
-let chatMessages = [];
-let chatOpen = false;
+let chatHistory = [];
+let chatOpen    = false;
 
-// Tạo giao diện chatbox
-function createChatbox() {
-  const chatHTML = `
-    <button id="chat-toggle-btn" onclick="toggleChat()">
-      💬
-      <span id="chat-badge" class="chat-badge hidden">!</span>
-    </button>
-
-    <div id="chatbox" class="chatbox hidden">
-      <div class="chat-header">
-        <div class="chat-header-info">
-          <span class="chat-avatar">🤖</span>
-          <div>
-            <div class="chat-name">AI Gym Assistant</div>
-            <div class="chat-status">Powered by Groq AI</div>
-          </div>
-        </div>
-        <button class="chat-close-btn" onclick="toggleChat()">✕</button>
-      </div>
-
-      <div id="chat-messages" class="chat-messages">
-        <div class="chat-bubble ai">
-          Xin chào! Mình là AI Gym Assistant 💪<br>
-          Mình có thể giúp bạn:<br>
-          • Gợi ý bài tập theo nhóm cơ<br>
-          • Lên lịch tập theo tuần<br>
-          • Hướng dẫn kỹ thuật tập đúng cách<br>
-          • Tư vấn mức tạ phù hợp<br><br>
-          Bạn cần hỗ trợ gì? 😊
-        </div>
-      </div>
-
-      <div class="chat-input-area">
-        <input
-          type="text"
-          id="chat-input"
-          placeholder="Nhập câu hỏi..."
-          onkeydown="if(event.key==='Enter') sendChat()"
-        />
-        <button class="chat-send-btn" onclick="sendChat()">➤</button>
-      </div>
-    </div>
-  `;
-
-  const container = document.createElement('div');
-  container.innerHTML = chatHTML;
-  document.body.appendChild(container);
-}
-
-// Mở/đóng chatbox
 function toggleChat() {
   chatOpen = !chatOpen;
-  const chatbox = document.getElementById('chatbox');
-  const badge   = document.getElementById('chat-badge');
-
-  if (chatOpen) {
-    chatbox.classList.remove('hidden');
-    badge.classList.add('hidden');
-    document.getElementById('chat-input').focus();
-  } else {
-    chatbox.classList.add('hidden');
-  }
+  const box = document.getElementById('chat-box');
+  const btn = document.getElementById('chat-toggle-btn');
+  if (box) box.style.display = chatOpen ? 'flex' : 'none';
+  if (btn) btn.textContent = chatOpen ? '✕' : '💬';
 }
 
-// Gửi tin nhắn
+function closeChat() {
+  chatOpen = false;
+  const box = document.getElementById('chat-box');
+  const btn = document.getElementById('chat-toggle-btn');
+  if (box) box.style.display = 'none';
+  if (btn) btn.textContent = '💬';
+}
+
 async function sendChat() {
   const input = document.getElementById('chat-input');
-  const text  = input.value.trim();
-  if (!text) return;
+  const msg   = input?.value?.trim();
+  if (!msg) return;
 
-  appendChatBubble(text, 'user');
-  chatMessages.push({ role: 'user', content: text });
   input.value = '';
+  appendChatMessage('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
 
-  const typingId = appendTyping();
-
+  const typing = appendTypingIndicator();
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getToken()}`
-      },
-      body: JSON.stringify({ messages: chatMessages })
-    });
+    const res  = await apiChat(chatHistory);
+    typing.remove();
+    const text = res.reply || 'Xin lỗi, có lỗi xảy ra!';
+    appendChatMessage('ai', text);
+    chatHistory.push({ role: 'assistant', content: text });
 
-    const data = await res.json();
-    removeTyping(typingId);
-
-    if (data.error) throw new Error(data.error);
-
-    appendChatBubble(data.reply, 'ai');
-    chatMessages.push({ role: 'assistant', content: data.reply });
-
-    // Nếu có video keyword → hiện video YouTube
-    if (data.videoKeyword) {
-      appendYouTubeVideo(data.videoKeyword);
-    }
-
-    if (!chatOpen) {
-      document.getElementById('chat-badge').classList.remove('hidden');
-    }
-  } catch (err) {
-    removeTyping(typingId);
-    appendChatBubble('Xin lỗi, có lỗi xảy ra. Vui lòng thử lại! 😅', 'ai');
+    // Hiển thị YouTube nếu AI đề cập bài tập
+    const keyword = extractExerciseKeyword(text);
+    if (keyword) appendYouTubeVideo(keyword);
+  } catch (e) {
+    typing.remove();
+    appendChatMessage('ai', 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại! 😅');
   }
 }
 
-// Thêm bubble tin nhắn
-function appendChatBubble(text, role) {
+function appendChatMessage(role, text) {
   const messages = document.getElementById('chat-messages');
-  const bubble   = document.createElement('div');
-  bubble.className = `chat-bubble ${role}`;
-  bubble.innerHTML = text.replace(/\n/g, '<br>');
-  messages.appendChild(bubble);
+  if (!messages) return;
+  const div = document.createElement('div');
+  div.className = `chat-msg chat-msg-${role}`;
+  div.innerHTML = `<div class="chat-bubble">${formatChatText(text)}</div>`;
+  messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+  return div;
 }
 
-// =============================================
-// HIỂN THỊ VIDEO YOUTUBE
-// =============================================
+function appendTypingIndicator() {
+  const messages = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg chat-msg-ai';
+  div.innerHTML = `<div class="chat-bubble typing-indicator"><span></span><span></span><span></span></div>`;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
 
-// Danh sách video ID cho từng bài tập phổ biến
-const exerciseVideos = {
-  'bench press':    'SCVCLChPQFY',
-  'squat':          'ultWZbUMPL8',
-  'deadlift':       'op9kVnSso6Q',
-  'pull up':        'eGo4IYlbE5g',
-  'shoulder press': 'qEwKCR5JCog',
-  'bicep curl':     'ykJmrZ5v0Oo',
-  'tricep':         'nRiJVZDpdL0',
-  'lat pulldown':   'CAwf7n6Luuc',
-  'leg press':      'IZxyjW7MPJQ',
-  'plank':          'ASdvN_XEl_c',
-  'push up':        '_l3ySVKYVJ8',
-  'lunge':          'QOVaHwm-Q6U',
-  'row':            'T3N-TO4reLQ',
-};
+function formatChatText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function extractExerciseKeyword(text) {
+  const exercises = [
+    'bench press', 'squat', 'deadlift', 'pull up', 'chin up',
+    'overhead press', 'lateral raise', 'barbell curl', 'tricep pushdown',
+    'leg press', 'romanian deadlift', 'lunge', 'plank', 'crunch',
+    'dumbbell flye', 'bent over row', 'lat pulldown', 'hammer curl',
+    'skull crusher', 'calf raise', 'leg raise', 'russian twist',
+    'face pull', 'incline bench'
+  ];
+  const lower = text.toLowerCase();
+  return exercises.find(ex => lower.includes(ex)) || null;
+}
 
 function appendYouTubeVideo(keyword) {
-  const messages    = document.getElementById('chat-messages');
+  const messages = document.getElementById('chat-messages');
+  if (!messages) return;
+
+  const videoIds = {
+    'bench press': 'SCVCLChPQFY',
+    'squat':       'ultWZbUMPL8',
+    'deadlift':    'op9kVnSso6Q',
+    'pull up':     'eGo4IYlbE5g',
+    'chin up':     'eGo4IYlbE5g',
+    'overhead press':    '2yjwXTZQDDI',
+    'lateral raise':     '3VcKaXpzqRo',
+    'barbell curl':      'kwG2ipFRgfo',
+    'tricep pushdown':   '2-LAMcpzODU',
+    'leg press':         'IZxyjW7MPJQ',
+    'romanian deadlift': 'JCXUYuzwNrM',
+    'lunge':             'QOVaHwm-Q6U',
+    'plank':             'pSHjTRCQxIw',
+    'crunch':            'Xyd_fa5zoEU',
+    'dumbbell flye':     'eozdVDA78K0',
+    'bent over row':     'vT2GjY_Umpw',
+    'lat pulldown':      'CAwf7n6Luuc',
+    'hammer curl':       'zC3nLlEvin4',
+    'skull crusher':     'd_KZxkY_0cM',
+    'calf raise':        'gwLzBJYoWlI',
+    'leg raise':         'l4kQd9eWclE',
+    'russian twist':     'wkD8rjkodUI',
+    'face pull':         'rep-qVOkqgk',
+    'incline bench':     'DbFgADa2PL8',
+  };
+
+  const videoId     = videoIds[keyword] || null;
   const searchQuery = encodeURIComponent(keyword + ' hướng dẫn kỹ thuật');
   const youtubeUrl  = `https://www.youtube.com/results?search_query=${searchQuery}`;
-
-  // Tìm video ID phù hợp, nếu không có thì dùng mặc định
-  const keyLower   = keyword.toLowerCase();
-  const matchedKey = Object.keys(exerciseVideos).find(k => keyLower.includes(k));
-  const videoId    = matchedKey ? exerciseVideos[matchedKey] : 'SCVCLChPQFY';
-  const videoUrl   = `https://www.youtube.com/watch?v=${videoId}`;
-  const thumbUrl   = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+  const thumbUrl    = videoId
+    ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+    : `https://via.placeholder.com/320x180/ff0000/ffffff?text=YouTube`;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'chat-video-wrapper';
   wrapper.innerHTML = `
     <div class="chat-video-label">🎬 Video hướng dẫn: <strong>${keyword}</strong></div>
-    <a href="${videoUrl}" target="_blank" class="chat-video-thumb">
+    <a href="${youtubeUrl}" target="_blank" class="chat-video-thumb">
       <div class="chat-video-thumb-inner">
-        <img src="${thumbUrl}" alt="${keyword}" />
+        <img src="${thumbUrl}" alt="${keyword}"
+             onerror="this.src='https://via.placeholder.com/320x180/ff0000/ffffff?text=YouTube'">
         <div class="chat-video-play">▶</div>
       </div>
-      <div class="chat-video-caption">
-        Nhấn để xem video hướng dẫn <strong>${keyword}</strong>
-      </div>
+      <div class="chat-video-caption">Nhấn để xem video hướng dẫn <strong>${keyword}</strong></div>
     </a>
     <a href="${youtubeUrl}" target="_blank" class="chat-youtube-btn">
-      🔍 Tìm thêm video "${keyword}" trên YouTube
+      🔍 Tìm kiếm "${keyword}" trên YouTube
     </a>
   `;
-
   messages.appendChild(wrapper);
   messages.scrollTop = messages.scrollHeight;
 }
 
-// Hiện typing indicator
-function appendTyping() {
-  const messages = document.getElementById('chat-messages');
-  const id       = 'typing-' + Date.now();
-  const typing   = document.createElement('div');
-  typing.className = 'chat-bubble ai typing';
-  typing.id        = id;
-  typing.innerHTML = '<span></span><span></span><span></span>';
-  messages.appendChild(typing);
-  messages.scrollTop = messages.scrollHeight;
-  return id;
-}
-
-// Xóa typing indicator
-function removeTyping(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-// Khởi tạo chatbox khi trang load xong
-document.addEventListener('DOMContentLoaded', createChatbox);
+// Gửi chat khi nhấn Enter
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement?.id === 'chat-input') {
+    sendChat();
+  }
+});
