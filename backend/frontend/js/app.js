@@ -60,9 +60,9 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
 // CHUYỂN TAB ĐĂNG NHẬP / ĐĂNG KÝ
 // =============================================
 function switchTab(tab) {
-  const loginForm  = document.getElementById('login-form');
-  const regForm    = document.getElementById('register-form');
-  const tabs       = document.querySelectorAll('.tab-btn');
+  const loginForm = document.getElementById('login-form');
+  const regForm   = document.getElementById('register-form');
+  const tabs      = document.querySelectorAll('.tab-btn');
 
   if (tab === 'login') {
     loginForm.classList.remove('hidden');
@@ -99,37 +99,32 @@ function showMainPage(user) {
   document.getElementById('main-page').classList.remove('hidden');
   document.getElementById('user-greeting').textContent = `Xin chào, ${user.full_name} 👋`;
 
-  // Khởi tạo lịch và tải dữ liệu
   renderCalendar();
   loadWorkoutDates();
-
-  // Tải buổi tập ngày hôm nay
   loadWorkoutForDate(selectedDate);
 }
 
 // =============================================
 // CHATBOX AI
 // =============================================
-let chatMessages = []; // Lưu lịch sử hội thoại
+let chatMessages = [];
 let chatOpen = false;
 
 // Tạo giao diện chatbox
 function createChatbox() {
   const chatHTML = `
-    <!-- Nút mở chat -->
     <button id="chat-toggle-btn" onclick="toggleChat()">
       💬
       <span id="chat-badge" class="chat-badge hidden">!</span>
     </button>
 
-    <!-- Cửa sổ chat -->
     <div id="chatbox" class="chatbox hidden">
       <div class="chat-header">
         <div class="chat-header-info">
           <span class="chat-avatar">🤖</span>
           <div>
             <div class="chat-name">AI Gym Assistant</div>
-            <div class="chat-status">Powered by Claude AI</div>
+            <div class="chat-status">Powered by Groq AI</div>
           </div>
         </div>
         <button class="chat-close-btn" onclick="toggleChat()">✕</button>
@@ -148,10 +143,10 @@ function createChatbox() {
       </div>
 
       <div class="chat-input-area">
-        <input 
-          type="text" 
-          id="chat-input" 
-          placeholder="Nhập câu hỏi..." 
+        <input
+          type="text"
+          id="chat-input"
+          placeholder="Nhập câu hỏi..."
           onkeydown="if(event.key==='Enter') sendChat()"
         />
         <button class="chat-send-btn" onclick="sendChat()">➤</button>
@@ -168,7 +163,7 @@ function createChatbox() {
 function toggleChat() {
   chatOpen = !chatOpen;
   const chatbox = document.getElementById('chatbox');
-  const badge = document.getElementById('chat-badge');
+  const badge   = document.getElementById('chat-badge');
 
   if (chatOpen) {
     chatbox.classList.remove('hidden');
@@ -182,15 +177,13 @@ function toggleChat() {
 // Gửi tin nhắn
 async function sendChat() {
   const input = document.getElementById('chat-input');
-  const text = input.value.trim();
+  const text  = input.value.trim();
   if (!text) return;
 
-  // Hiện tin nhắn của user
   appendChatBubble(text, 'user');
   chatMessages.push({ role: 'user', content: text });
   input.value = '';
 
-  // Hiện typing indicator
   const typingId = appendTyping();
 
   try {
@@ -212,7 +205,11 @@ async function sendChat() {
     appendChatBubble(data.reply, 'ai');
     chatMessages.push({ role: 'assistant', content: data.reply });
 
-    // Thông báo nếu chat đang đóng
+    // Nếu có video keyword → hiện video YouTube
+    if (data.videoKeyword) {
+      appendYouTubeVideo(data.videoKeyword);
+    }
+
     if (!chatOpen) {
       document.getElementById('chat-badge').classList.remove('hidden');
     }
@@ -225,22 +222,51 @@ async function sendChat() {
 // Thêm bubble tin nhắn
 function appendChatBubble(text, role) {
   const messages = document.getElementById('chat-messages');
-  const bubble = document.createElement('div');
-  bubble.className = `chat-bubble ${role}`;
-  // Chuyển xuống dòng thành <br>
-  bubble.innerHTML = text.replace(/\n/g, '<br>');
+  const bubble   = document.createElement('div');
+  bubble.className   = `chat-bubble ${role}`;
+  bubble.innerHTML   = text.replace(/\n/g, '<br>');
   messages.appendChild(bubble);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// Hiển thị video YouTube trong chatbox
+function appendYouTubeVideo(keyword) {
+  const messages    = document.getElementById('chat-messages');
+  const searchQuery = encodeURIComponent(keyword + ' tutorial proper form');
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'chat-video-wrapper';
+  wrapper.innerHTML = `
+    <div class="chat-video-label">🎬 Video hướng dẫn: <strong>${keyword}</strong></div>
+    <div class="chat-video-container">
+      <iframe
+        src="https://www.youtube.com/embed?listType=search&list=${searchQuery}&index=1"
+        frameborder="0"
+        allowfullscreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      ></iframe>
+    </div>
+    <a
+      href="https://www.youtube.com/results?search_query=${searchQuery}"
+      target="_blank"
+      class="chat-youtube-btn"
+    >
+      ▶ Xem thêm trên YouTube
+    </a>
+  `;
+
+  messages.appendChild(wrapper);
   messages.scrollTop = messages.scrollHeight;
 }
 
 // Hiện typing indicator
 function appendTyping() {
   const messages = document.getElementById('chat-messages');
-  const id = 'typing-' + Date.now();
-  const typing = document.createElement('div');
-  typing.className = 'chat-bubble ai typing';
-  typing.id = id;
-  typing.innerHTML = '<span></span><span></span><span></span>';
+  const id       = 'typing-' + Date.now();
+  const typing   = document.createElement('div');
+  typing.className   = 'chat-bubble ai typing';
+  typing.id          = id;
+  typing.innerHTML   = '<span></span><span></span><span></span>';
   messages.appendChild(typing);
   messages.scrollTop = messages.scrollHeight;
   return id;
