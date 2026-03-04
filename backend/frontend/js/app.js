@@ -16,15 +16,15 @@ window.addEventListener('DOMContentLoaded', () => {
 // HIỂN THỊ AUTH / APP
 // =============================================
 function showAuth() {
-  document.getElementById('auth-section').style.display  = 'flex';
-  document.getElementById('app-section').style.display   = 'none';
+  document.getElementById('auth-section').style.display = 'flex';
+  document.getElementById('app-section').style.display  = 'none';
 }
 
 function showApp() {
-  document.getElementById('auth-section').style.display  = 'none';
-  document.getElementById('app-section').style.display   = 'block';
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('app-section').style.display  = 'block';
 
-  const user = JSON.parse(localStorage.getItem('gym_user') || '{}');
+  const user  = JSON.parse(localStorage.getItem('gym_user') || '{}');
   const nameEl = document.getElementById('user-name');
   if (nameEl) nameEl.textContent = user.full_name || user.username || 'Bạn';
 
@@ -36,18 +36,31 @@ function showApp() {
 // CHUYỂN TAB
 // =============================================
 function switchTab(tab) {
-  // Ẩn tất cả tabs
+  // Ẩn tất cả tab content
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  // Bỏ active tất cả nav tab
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
 
   if (tab === 'workout') {
     document.getElementById('workout-tab').style.display = 'block';
-    document.querySelector('[data-tab="workout"]')?.classList.add('active');
+    const btn = document.querySelector('[data-tab="workout"]');
+    if (btn) btn.classList.add('active');
     initCalendar();
+
   } else if (tab === 'library') {
-    document.getElementById('library-tab').style.display = 'block';
-    document.querySelector('[data-tab="library"]')?.classList.add('active');
-    initLibrary();
+    const libTab = document.getElementById('library-tab');
+    libTab.style.display = 'block';
+    const btn = document.querySelector('[data-tab="library"]');
+    if (btn) btn.classList.add('active');
+
+    // Dùng requestAnimationFrame để đảm bảo DOM đã render xong
+    requestAnimationFrame(() => {
+      if (typeof EXERCISES_DATA !== 'undefined' && typeof initLibrary === 'function') {
+        initLibrary();
+      } else {
+        libTab.innerHTML = '<p style="padding:2rem;color:red;">Lỗi: Không tải được dữ liệu bài tập!</p>';
+      }
+    });
   }
 }
 
@@ -132,12 +145,15 @@ function showLoginForm() {
 // ENTER KEY SUBMIT
 // =============================================
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    const loginForm = document.getElementById('login-form');
-    const regForm   = document.getElementById('register-form');
-    if (loginForm?.style.display !== 'none') login();
-    else if (regForm?.style.display !== 'none') register();
-  }
+  if (e.key !== 'Enter') return;
+  const activeEl = document.activeElement?.id;
+  // Không kích hoạt nếu đang nhập chat
+  if (activeEl === 'chat-input') return;
+
+  const loginForm = document.getElementById('login-form');
+  const regForm   = document.getElementById('register-form');
+  if (loginForm?.style.display !== 'none') login();
+  else if (regForm?.style.display !== 'none') register();
 });
 
 // =============================================
@@ -151,7 +167,7 @@ function toggleChat() {
   const box = document.getElementById('chat-box');
   const btn = document.getElementById('chat-toggle-btn');
   if (box) box.style.display = chatOpen ? 'flex' : 'none';
-  if (btn) btn.textContent = chatOpen ? '✕' : '💬';
+  if (btn) btn.textContent   = chatOpen ? '✕' : '💬';
 }
 
 function closeChat() {
@@ -159,7 +175,7 @@ function closeChat() {
   const box = document.getElementById('chat-box');
   const btn = document.getElementById('chat-toggle-btn');
   if (box) box.style.display = 'none';
-  if (btn) btn.textContent = '💬';
+  if (btn) btn.textContent   = '💬';
 }
 
 async function sendChat() {
@@ -234,11 +250,11 @@ function appendYouTubeVideo(keyword) {
   if (!messages) return;
 
   const videoIds = {
-    'bench press': 'SCVCLChPQFY',
-    'squat':       'ultWZbUMPL8',
-    'deadlift':    'op9kVnSso6Q',
-    'pull up':     'eGo4IYlbE5g',
-    'chin up':     'eGo4IYlbE5g',
+    'bench press':       'SCVCLChPQFY',
+    'squat':             'ultWZbUMPL8',
+    'deadlift':          'op9kVnSso6Q',
+    'pull up':           'eGo4IYlbE5g',
+    'chin up':           'eGo4IYlbE5g',
     'overhead press':    '2yjwXTZQDDI',
     'lateral raise':     '3VcKaXpzqRo',
     'barbell curl':      'kwG2ipFRgfo',
@@ -260,10 +276,10 @@ function appendYouTubeVideo(keyword) {
     'incline bench':     'DbFgADa2PL8',
   };
 
-  const videoId     = videoIds[keyword] || null;
-  const searchQuery = encodeURIComponent(keyword + ' hướng dẫn kỹ thuật');
-  const youtubeUrl  = `https://www.youtube.com/results?search_query=${searchQuery}`;
-  const thumbUrl    = videoId
+  const videoId    = videoIds[keyword] || null;
+  const searchQ    = encodeURIComponent(keyword + ' hướng dẫn kỹ thuật');
+  const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
+  const thumbUrl   = videoId
     ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
     : `https://via.placeholder.com/320x180/ff0000/ffffff?text=YouTube`;
 
@@ -287,7 +303,7 @@ function appendYouTubeVideo(keyword) {
   messages.scrollTop = messages.scrollHeight;
 }
 
-// Gửi chat khi nhấn Enter
+// Gửi chat khi nhấn Enter (chỉ khi focus vào ô chat)
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement?.id === 'chat-input') {
     sendChat();

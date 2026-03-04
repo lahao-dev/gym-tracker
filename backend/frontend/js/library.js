@@ -1,12 +1,23 @@
 // library.js - Thư viện bài tập
 
 let currentCategory = 'Ngực';
-let searchTimeout = null;
+let searchTimeout   = null;
 
 // =============================================
-// KHỞI TẠO TRANG THƯ VIỆN
+// KHỞI TẠO
 // =============================================
 function initLibrary() {
+  // Kiểm tra dữ liệu đã load chưa
+  if (typeof EXERCISES_DATA === 'undefined') {
+    console.error('EXERCISES_DATA chưa được load!');
+    document.getElementById('lib-exercise-list').innerHTML =
+      '<p style="color:red;padding:1rem;">Lỗi tải dữ liệu bài tập!</p>';
+    return;
+  }
+
+  // Đặt tab đầu tiên
+  currentCategory = Object.keys(EXERCISES_DATA)[0];
+
   renderCategoryTabs();
   renderExerciseList(currentCategory);
 }
@@ -17,6 +28,7 @@ function initLibrary() {
 function renderCategoryTabs() {
   const tabs = document.getElementById('lib-category-tabs');
   if (!tabs) return;
+
   const categories = Object.keys(EXERCISES_DATA);
   tabs.innerHTML = categories.map(cat => `
     <button class="lib-tab ${cat === currentCategory ? 'active' : ''}"
@@ -28,8 +40,13 @@ function renderCategoryTabs() {
 
 function getCategoryIcon(cat) {
   const icons = {
-    'Ngực': '🏋️', 'Lưng': '🔙', 'Vai': '💪',
-    'Tay': '💪', 'Chân': '🦵', 'Bụng': '🔥', 'Dãn Cơ': '🧘'
+    'Ngực':    '🏋️',
+    'Lưng':    '🔙',
+    'Vai':     '💪',
+    'Tay':     '💪',
+    'Chân':    '🦵',
+    'Bụng':    '🔥',
+    'Dãn Cơ': '🧘'
   };
   return icons[cat] || '💪';
 }
@@ -40,6 +57,7 @@ function getCategoryIcon(cat) {
 function switchCategory(cat) {
   currentCategory = cat;
   renderCategoryTabs();
+
   const query = document.getElementById('lib-search-input')?.value || '';
   if (query.trim()) {
     searchExercises(query);
@@ -51,20 +69,27 @@ function switchCategory(cat) {
 // =============================================
 // RENDER DANH SÁCH BÀI TẬP
 // =============================================
-function renderExerciseList(category, exercises = null) {
+function renderExerciseList(category, exercises) {
   const container = document.getElementById('lib-exercise-list');
   if (!container) return;
-  const list = exercises || EXERCISES_DATA[category] || [];
+
+  const list = exercises !== undefined
+    ? exercises
+    : (EXERCISES_DATA[category] || []);
+
   if (list.length === 0) {
     container.innerHTML = `<div class="lib-empty">Không tìm thấy bài tập nào 🔍</div>`;
     return;
   }
+
   container.innerHTML = list.map(ex => `
-    <div class="lib-exercise-card" onclick="openExerciseDetail('${ex.id}', '${getCategoryByExercise(ex.id)}')">
+    <div class="lib-exercise-card"
+         onclick="openExerciseDetail('${ex.id}', '${getCategoryByExercise(ex.id)}')">
       <div class="lib-exercise-thumb">
-        <img src="https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg"
-             alt="${ex.name}"
-             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <img
+          src="https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg"
+          alt="${ex.name}"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
         <div class="lib-exercise-thumb-fallback">💪</div>
         <div class="lib-exercise-play">▶</div>
       </div>
@@ -73,33 +98,33 @@ function renderExerciseList(category, exercises = null) {
         <div class="lib-exercise-muscle">🎯 ${ex.muscle}</div>
         <div class="lib-exercise-meta">
           <span class="lib-badge difficulty-${ex.difficulty}">${ex.difficulty}</span>
-          <span class="lib-badge equipment-badge">🏋️ ${ex.equipment}</span>
         </div>
       </div>
     </div>
   `).join('');
 }
 
+// Tìm tên danh mục của bài tập dựa vào id
 function getCategoryByExercise(exerciseId) {
   for (const [cat, list] of Object.entries(EXERCISES_DATA)) {
     if (list.find(ex => ex.id === exerciseId)) return cat;
   }
-  return 'Ngực';
+  return Object.keys(EXERCISES_DATA)[0];
 }
 
 // =============================================
-// TÌM KIẾM BÀI TẬP
+// TÌM KIẾM
 // =============================================
 function searchExercises(query) {
   if (!query.trim()) {
     renderExerciseList(currentCategory);
     return;
   }
-  const q = query.toLowerCase();
-  const allExercises = Object.values(EXERCISES_DATA).flat();
-  const results = allExercises.filter(ex =>
-    ex.name.toLowerCase().includes(q) ||
-    ex.muscle.toLowerCase().includes(q) ||
+  const q   = query.toLowerCase();
+  const all = Object.values(EXERCISES_DATA).flat();
+  const results = all.filter(ex =>
+    ex.name.toLowerCase().includes(q)     ||
+    ex.muscle.toLowerCase().includes(q)   ||
     ex.equipment.toLowerCase().includes(q)
   );
   renderExerciseList(null, results);
@@ -114,23 +139,28 @@ function onLibSearchInput(e) {
 // MỞ POPUP CHI TIẾT
 // =============================================
 function openExerciseDetail(exerciseId, category) {
-  const list = EXERCISES_DATA[category] || Object.values(EXERCISES_DATA).flat();
-  const ex = list.find(e => e.id === exerciseId)
-           || Object.values(EXERCISES_DATA).flat().find(e => e.id === exerciseId);
+  // Tìm bài tập trong đúng danh mục trước, rồi mới tìm toàn bộ
+  const catList = EXERCISES_DATA[category] || [];
+  const ex = catList.find(e => e.id === exerciseId)
+    || Object.values(EXERCISES_DATA).flat().find(e => e.id === exerciseId);
+
   if (!ex) return;
 
-  const modal = document.getElementById('exercise-detail-modal');
-  const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' hướng dẫn kỹ thuật')}`;
+  const modal      = document.getElementById('exercise-detail-modal');
+  const searchQ    = encodeURIComponent(ex.name + ' hướng dẫn kỹ thuật');
+  const youtubeUrl = `https://www.youtube.com/results?search_query=${searchQ}`;
 
-  document.getElementById('detail-title').textContent = ex.name;
-  document.getElementById('detail-muscle').textContent = ex.muscle;
-  document.getElementById('detail-difficulty').textContent = ex.difficulty;
-  document.getElementById('detail-difficulty').className = `detail-badge difficulty-${ex.difficulty}`;
+  // Điền thông tin
+  document.getElementById('detail-title').textContent     = ex.name;
+  document.getElementById('detail-muscle').textContent    = ex.muscle;
   document.getElementById('detail-equipment').textContent = ex.equipment;
 
+  const diffEl = document.getElementById('detail-difficulty');
+  diffEl.textContent = ex.difficulty;
+  diffEl.className   = `detail-badge difficulty-${ex.difficulty}`;
+
   // Thumbnail + link YouTube
-  const thumb = document.getElementById('detail-thumbnail');
-  thumb.innerHTML = `
+  document.getElementById('detail-thumbnail').innerHTML = `
     <a href="${youtubeUrl}" target="_blank" class="detail-thumb-link">
       <img src="https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg"
            alt="${ex.name}"
@@ -143,38 +173,50 @@ function openExerciseDetail(exerciseId, category) {
   `;
 
   // Các bước
-  document.getElementById('detail-steps').innerHTML = ex.steps.map((s, i) =>
-    `<li><span class="step-num">${i + 1}</span>${s}</li>`
-  ).join('');
+  document.getElementById('detail-steps').innerHTML = ex.steps
+    .map((s, i) => `<li><span class="step-num">${i + 1}</span>${s}</li>`)
+    .join('');
 
   // Lưu ý
-  document.getElementById('detail-tips').innerHTML = ex.tips.map(t =>
-    `<li>⚠️ ${t}</li>`
-  ).join('');
+  document.getElementById('detail-tips').innerHTML = ex.tips
+    .map(t => `<li>⚠️ ${t}</li>`)
+    .join('');
 
   modal.classList.add('active');
   document.body.style.overflow = 'hidden';
 }
 
 function closeExerciseDetail() {
-  const modal = document.getElementById('exercise-detail-modal');
-  modal.classList.remove('active');
+  document.getElementById('exercise-detail-modal').classList.remove('active');
   document.body.style.overflow = '';
 }
 
 // =============================================
-// HÀM TÌM KIẾM DÙNG TRONG WORKOUT FORM
+// DROPDOWN TÌM KIẾM BÀI TẬP TRONG FORM THÊM
 // =============================================
 function searchExercisesForForm(query, dropdownId) {
   const dropdown = document.getElementById(dropdownId);
   if (!dropdown) return;
-  if (!query.trim()) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
-  const q = query.toLowerCase();
-  const all = Object.values(EXERCISES_DATA).flat();
+
+  if (!query.trim()) {
+    dropdown.innerHTML   = '';
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  const q       = query.toLowerCase();
+  const all     = Object.values(EXERCISES_DATA).flat();
   const results = all.filter(ex => ex.name.toLowerCase().includes(q)).slice(0, 8);
-  if (results.length === 0) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
+
+  if (results.length === 0) {
+    dropdown.innerHTML   = '';
+    dropdown.style.display = 'none';
+    return;
+  }
+
   dropdown.innerHTML = results.map(ex => `
-    <div class="exercise-dropdown-item" onclick="selectExerciseFromLibrary('${ex.id}', '${ex.name}', '${dropdownId}')">
+    <div class="exercise-dropdown-item"
+         onclick="selectExerciseFromLibrary('${ex.name}', '${dropdownId}')">
       <span class="dropdown-item-name">${ex.name}</span>
       <span class="dropdown-item-muscle">${ex.muscle}</span>
     </div>
@@ -182,12 +224,16 @@ function searchExercisesForForm(query, dropdownId) {
   dropdown.style.display = 'block';
 }
 
-function selectExerciseFromLibrary(exerciseId, exerciseName, dropdownId) {
+function selectExerciseFromLibrary(exerciseName, dropdownId) {
   const dropdown = document.getElementById(dropdownId);
-  // Điền tên vào ô input
-  const input = dropdown?.previousElementSibling;
-  if (input) input.value = exerciseName;
-  if (dropdown) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; }
+  if (!dropdown) return;
+
+  // Tìm ô input liền trước dropdown
+  const input = dropdown.previousElementSibling;
+  if (input && input.tagName === 'INPUT') input.value = exerciseName;
+
+  dropdown.innerHTML   = '';
+  dropdown.style.display = 'none';
 }
 
 // Đóng dropdown khi click ra ngoài
