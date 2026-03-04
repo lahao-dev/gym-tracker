@@ -229,34 +229,53 @@ function appendChatBubble(text, role) {
 }
 
 // =============================================
-// HIỂN THỊ VIDEO YOUTUBE (không dùng iframe)
+// HIỂN THỊ VIDEO YOUTUBE
 // =============================================
+
+// Danh sách video ID cho từng bài tập phổ biến
+const exerciseVideos = {
+  'bench press':    'SCVCLChPQFY',
+  'squat':          'ultWZbUMPL8',
+  'deadlift':       'op9kVnSso6Q',
+  'pull up':        'eGo4IYlbE5g',
+  'shoulder press': 'qEwKCR5JCog',
+  'bicep curl':     'ykJmrZ5v0Oo',
+  'tricep':         'nRiJVZDpdL0',
+  'lat pulldown':   'CAwf7n6Luuc',
+  'leg press':      'IZxyjW7MPJQ',
+  'plank':          'ASdvN_XEl_c',
+  'push up':        '_l3ySVKYVJ8',
+  'lunge':          'QOVaHwm-Q6U',
+  'row':            'T3N-TO4reLQ',
+};
+
 function appendYouTubeVideo(keyword) {
   const messages    = document.getElementById('chat-messages');
   const searchQuery = encodeURIComponent(keyword + ' hướng dẫn kỹ thuật');
   const youtubeUrl  = `https://www.youtube.com/results?search_query=${searchQuery}`;
 
-  // Dùng thumbnail ảnh tĩnh thay vì iframe (tránh bị chặn)
-  const thumbnailUrl = `https://img.youtube.com/vi/gRVjAtPip0Y/mqdefault.jpg`;
+  // Tìm video ID phù hợp, nếu không có thì dùng mặc định
+  const keyLower   = keyword.toLowerCase();
+  const matchedKey = Object.keys(exerciseVideos).find(k => keyLower.includes(k));
+  const videoId    = matchedKey ? exerciseVideos[matchedKey] : 'SCVCLChPQFY';
+  const videoUrl   = `https://www.youtube.com/watch?v=${videoId}`;
+  const thumbUrl   = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'chat-video-wrapper';
   wrapper.innerHTML = `
     <div class="chat-video-label">🎬 Video hướng dẫn: <strong>${keyword}</strong></div>
-    <a href="${youtubeUrl}" target="_blank" class="chat-video-thumb">
+    <a href="${videoUrl}" target="_blank" class="chat-video-thumb">
       <div class="chat-video-thumb-inner">
-        <img
-          src="${thumbnailUrl}"
-          alt="${keyword}"
-        />
+        <img src="${thumbUrl}" alt="${keyword}" />
         <div class="chat-video-play">▶</div>
       </div>
       <div class="chat-video-caption">
-        Nhấn để xem video hướng dẫn <strong>${keyword}</strong> trên YouTube
+        Nhấn để xem video hướng dẫn <strong>${keyword}</strong>
       </div>
     </a>
     <a href="${youtubeUrl}" target="_blank" class="chat-youtube-btn">
-      🔍 Tìm kiếm "${keyword}" trên YouTube
+      🔍 Tìm thêm video "${keyword}" trên YouTube
     </a>
   `;
 
