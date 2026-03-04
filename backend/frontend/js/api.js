@@ -2,12 +2,13 @@
 
 const API_BASE = window.location.origin + '/api';
 
-// Lấy token từ localStorage
+// =============================================
+// HÀM FETCH CHUNG
+// =============================================
 function getToken() {
   return localStorage.getItem('gym_token');
 }
 
-// Hàm fetch chung có đính kèm token
 async function apiFetch(url, options = {}) {
   const token = getToken();
   const res = await fetch(API_BASE + url, {
@@ -23,21 +24,73 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
-// ---- AUTH ----
-const api = {
-  register: (body) => apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
-  login:    (body) => apiFetch('/auth/login',    { method: 'POST', body: JSON.stringify(body) }),
+// =============================================
+// AUTH
+// =============================================
+function apiRegister(body) {
+  return apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(body) });
+}
 
-  // ---- WORKOUTS ----
-  getWorkouts:     ()           => apiFetch('/workouts'),
-  getWorkout:      (date)       => apiFetch(`/workouts/${date}`),
-  saveWorkout:     (body)       => apiFetch('/workouts', { method: 'POST', body: JSON.stringify(body) }),
-  deleteWorkout:   (id)         => apiFetch(`/workouts/${id}`, { method: 'DELETE' }),
-  getProgress:     (name)       => apiFetch(`/workouts/progress/${encodeURIComponent(name)}`),
+function apiLogin(body) {
+  return apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) });
+}
 
-  // ---- EXERCISES ----
-  addExercise:     (body)       => apiFetch('/exercises', { method: 'POST', body: JSON.stringify(body) }),
-  updateExercise:  (id, body)   => apiFetch(`/exercises/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteExercise:  (id)         => apiFetch(`/exercises/${id}`, { method: 'DELETE' }),
-  copyWorkout:     (body)       => apiFetch('/exercises/copy', { method: 'POST', body: JSON.stringify(body) })
-};
+// =============================================
+// WORKOUTS
+// =============================================
+
+// Lấy tất cả buổi tập (dùng cho lịch tháng)
+function apiGetWorkoutsByMonth(year, month) {
+  return apiFetch(`/workouts?year=${year}&month=${month}`);
+}
+
+// Lấy buổi tập theo ngày cụ thể
+function apiGetWorkoutByDate(date) {
+  return apiFetch(`/workouts/${date}`);
+}
+
+// Tạo buổi tập mới
+function apiCreateWorkout(body) {
+  return apiFetch('/workouts', { method: 'POST', body: JSON.stringify(body) });
+}
+
+// Cập nhật buổi tập (ghi chú, đánh giá sao)
+function apiUpdateWorkout(id, body) {
+  return apiFetch(`/workouts/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+// Xóa buổi tập
+function apiDeleteWorkout(id) {
+  return apiFetch(`/workouts/${id}`, { method: 'DELETE' });
+}
+
+// Lấy lịch sử tiến trình tạ theo tên bài tập
+function apiGetProgress(exerciseName) {
+  return apiFetch(`/workouts/progress/${encodeURIComponent(exerciseName)}`);
+}
+
+// =============================================
+// EXERCISES
+// =============================================
+
+// Thêm bài tập vào buổi tập
+function apiCreateExercise(body) {
+  return apiFetch('/exercises', { method: 'POST', body: JSON.stringify(body) });
+}
+
+// Cập nhật bài tập (sửa, tick set...)
+function apiUpdateExercise(id, body) {
+  return apiFetch(`/exercises/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+// Xóa bài tập
+function apiDeleteExercise(id) {
+  return apiFetch(`/exercises/${id}`, { method: 'DELETE' });
+}
+
+// =============================================
+// CHAT AI
+// =============================================
+function apiChat(messages) {
+  return apiFetch('/chat', { method: 'POST', body: JSON.stringify({ messages }) });
+}

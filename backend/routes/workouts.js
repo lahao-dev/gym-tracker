@@ -1,18 +1,35 @@
 // routes/workouts.js - API quản lý buổi tập
 const express = require('express');
-const router = express.Router();
-const db = require('../database');
+const router  = express.Router();
+const db      = require('../database');
 const { requireAuth } = require('../middleware/auth');
 
 router.use(requireAuth);
 
-// GET /api/workouts - Lấy tất cả buổi tập
+// GET /api/workouts?year=2026&month=3 - Lấy buổi tập theo tháng
 router.get('/', async (req, res) => {
   try {
-    const workouts = await db.asyncAll(
-      'SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC',
-      [req.user.id]
-    );
+    const { year, month } = req.query;
+
+    let workouts;
+    if (year && month) {
+      // Lọc theo tháng: định dạng YYYY-MM
+      const monthStr = String(month).padStart(2, '0');
+      const prefix   = `${year}-${monthStr}`;
+      workouts = await db.asyncAll(
+        `SELECT * FROM workouts
+         WHERE user_id = ? AND date LIKE ?
+         ORDER BY date ASC`,
+        [req.user.id, `${prefix}%`]
+      );
+    } else {
+      // Không có filter → trả về tất cả
+      workouts = await db.asyncAll(
+        'SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC',
+        [req.user.id]
+      );
+    }
+
     res.json(workouts);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -21,7 +38,7 @@ router.get('/', async (req, res) => {
 router.get('/progress/:name', async (req, res) => {
   try {
     const data = await db.asyncAll(`
-      SELECT w.date, e.weight_kg, e.sets, e.reps
+      SELECT w.date, e.weight_kg, e.num_sets, e.num_reps
       FROM exercises e
       JOIN workouts w ON e.workout_id = w.id
       WHERE w.user_id = ? AND LOWER(e.name) = LOWER(?)
@@ -31,7 +48,7 @@ router.get('/progress/:name', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/workouts/:date - Lấy buổi tập theo ngày
+// GET /api/workouts/:date - Lấy buổi tập theo ngày (YYYY-MM-DD)
 router.get('/:date', async (req, res) => {
   try {
     const workout = await db.asyncGet(
@@ -41,7 +58,7 @@ router.get('/:date', async (req, res) => {
     if (!workout) return res.json(null);
 
     const exercises = await db.asyncAll(
-      'SELECT * FROM exercises WHERE workout_id = ? ORDER BY order_index',
+      'SELECT * FROM exercises WHERE workout_id = ? ORDER BY id ASC',
       [workout.id]
     );
     res.json({ ...workout, exercises });
@@ -67,6 +84,25 @@ router.post('/', async (req, res) => {
       [req.user.id, date]
     );
     res.json(workout);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/workouts/:id - Cập nhật ghi chú / đánh giá sao
+router.put('/:id', async (req, res) => {
+  const { notes, rating } = req.body;
+  try {
+    const workout = await db.asyncGet(
+      'SELECT * FROM workouts WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (!workout) return res.status(404).json({ error: 'Không tìm thấy buổi tập!' });
+
+    await db.asyncRun(
+      'UPDATE workouts SET notes = ?, rating = ? WHERE id = ?',
+      [notes ?? workout.notes, rating ?? workout.rating, req.params.id]
+    );
+    const updated = await db.asyncGet('SELECT * FROM workouts WHERE id = ?', [req.params.id]);
+    res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
