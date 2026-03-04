@@ -756,3 +756,90 @@ body {
     height: 60vh;
   }
 }
+
+/* ============================================
+   VIDEO YOUTUBE TRONG CHATBOX
+   ============================================ */
+.chat-video-wrapper {
+  margin: 0.5rem 0;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1.5px solid var(--gray-200);
+  width: 100%;
+}
+
+.chat-video-label {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.chat-video-thumb {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.chat-video-thumb-inner {
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-video-thumb-inner img {
+  width: 100%;
+  display: block;
+  transition: opacity 0.2s;
+}
+
+.chat-video-thumb:hover .chat-video-thumb-inner img {
+  opacity: 0.85;
+}
+
+.chat-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 0, 0, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+  transition: transform 0.2s;
+}
+
+.chat-video-thumb:hover .chat-video-play {
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.chat-video-caption {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+}
+
+.chat-youtube-btn {
+  display: block;
+  text-align: center;
+  padding: 0.6rem;
+  background: #ff0000;
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.chat-youtube-btn:hover {
+  background: #cc0000;
+}

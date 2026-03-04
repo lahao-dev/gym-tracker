@@ -201,7 +201,6 @@ async function sendChat() {
 
     if (data.error) throw new Error(data.error);
 
-    // Hiện câu trả lời AI
     appendChatBubble(data.reply, 'ai');
     chatMessages.push({ role: 'assistant', content: data.reply });
 
@@ -223,35 +222,41 @@ async function sendChat() {
 function appendChatBubble(text, role) {
   const messages = document.getElementById('chat-messages');
   const bubble   = document.createElement('div');
-  bubble.className   = `chat-bubble ${role}`;
-  bubble.innerHTML   = text.replace(/\n/g, '<br>');
+  bubble.className = `chat-bubble ${role}`;
+  bubble.innerHTML = text.replace(/\n/g, '<br>');
   messages.appendChild(bubble);
   messages.scrollTop = messages.scrollHeight;
 }
 
-// Hiển thị video YouTube trong chatbox
+// =============================================
+// HIỂN THỊ VIDEO YOUTUBE (không dùng iframe)
+// =============================================
 function appendYouTubeVideo(keyword) {
   const messages    = document.getElementById('chat-messages');
-  const searchQuery = encodeURIComponent(keyword + ' tutorial proper form');
+  const searchQuery = encodeURIComponent(keyword + ' hướng dẫn kỹ thuật');
+  const youtubeUrl  = `https://www.youtube.com/results?search_query=${searchQuery}`;
+
+  // Dùng thumbnail ảnh tĩnh thay vì iframe (tránh bị chặn)
+  const thumbnailUrl = `https://img.youtube.com/vi/gRVjAtPip0Y/mqdefault.jpg`;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'chat-video-wrapper';
   wrapper.innerHTML = `
     <div class="chat-video-label">🎬 Video hướng dẫn: <strong>${keyword}</strong></div>
-    <div class="chat-video-container">
-      <iframe
-        src="https://www.youtube.com/embed?listType=search&list=${searchQuery}&index=1"
-        frameborder="0"
-        allowfullscreen
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      ></iframe>
-    </div>
-    <a
-      href="https://www.youtube.com/results?search_query=${searchQuery}"
-      target="_blank"
-      class="chat-youtube-btn"
-    >
-      ▶ Xem thêm trên YouTube
+    <a href="${youtubeUrl}" target="_blank" class="chat-video-thumb">
+      <div class="chat-video-thumb-inner">
+        <img
+          src="${thumbnailUrl}"
+          alt="${keyword}"
+        />
+        <div class="chat-video-play">▶</div>
+      </div>
+      <div class="chat-video-caption">
+        Nhấn để xem video hướng dẫn <strong>${keyword}</strong> trên YouTube
+      </div>
+    </a>
+    <a href="${youtubeUrl}" target="_blank" class="chat-youtube-btn">
+      🔍 Tìm kiếm "${keyword}" trên YouTube
     </a>
   `;
 
@@ -264,9 +269,9 @@ function appendTyping() {
   const messages = document.getElementById('chat-messages');
   const id       = 'typing-' + Date.now();
   const typing   = document.createElement('div');
-  typing.className   = 'chat-bubble ai typing';
-  typing.id          = id;
-  typing.innerHTML   = '<span></span><span></span><span></span>';
+  typing.className = 'chat-bubble ai typing';
+  typing.id        = id;
+  typing.innerHTML = '<span></span><span></span><span></span>';
   messages.appendChild(typing);
   messages.scrollTop = messages.scrollHeight;
   return id;
