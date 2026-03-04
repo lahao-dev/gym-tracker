@@ -1,9 +1,9 @@
 // server.js - File chính khởi động server
 const express = require('express');
-const cors = require('cors');
-const path = require('path');
+const cors    = require('cors');
+const path    = require('path');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // =============================================
@@ -12,21 +12,26 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve file tĩnh từ thư mục frontend
-const frontendPath = path.join(__dirname, 'frontend');
-console.log('Frontend path:', frontendPath);
-app.use(express.static(frontendPath));
-
 // =============================================
-// ROUTES
+// ROUTES API (đặt TRƯỚC static files)
 // =============================================
 app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/workouts',  require('./routes/workouts'));
 app.use('/api/exercises', require('./routes/exercises'));
 app.use('/api/chat',      require('./routes/chat'));
 
-// Mọi route không khớp → trả về index.html (phải đặt CUỐI CÙNG)
+// =============================================
+// SERVE FILE TĨNH (đặt SAU các API routes)
+// =============================================
+const frontendPath = path.join(__dirname, 'frontend');
+app.use(express.static(frontendPath));
+
+// Chỉ trả về index.html cho các route KHÔNG phải file tĩnh và KHÔNG phải /api
 app.get('*', (req, res) => {
+  // Nếu request là file có đuôi (.js, .css, .png...) → trả về 404 thật sự
+  if (req.path.match(/\.[a-zA-Z0-9]+$/)) {
+    return res.status(404).send('File not found');
+  }
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
